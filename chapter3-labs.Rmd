@@ -7,17 +7,37 @@ This is an R Notebook containing the chapter 3 labs from 'An Introduction to Sta
 ```{r setup, include=FALSE}
 install.packages("MASS")
 install.packages("ISLR")
+install.packages("car")
 library("MASS")
 library("ISLR")
+library("car")
 ```
 
-## Lab 3.6.2
+## Boston Data Details
+Housing Values in Suburbs of Boston. The Boston data frame has 506 rows and 14 columns.
+
+Columns:
+
+* crim: per capita crime rate by town.
+* zn: proportion of residential land zoned for lots over 25,000 sq.ft.
+* indus: proportion of non-retail business acres per town.
+* chas: Charles River dummy variable (= 1 if tract bounds river; 0 otherwise).
+* nox: nitrogen oxides concentration (parts per 10 million).
+* rm: average number of rooms per dwelling.
+* age: proportion of owner-occupied units built prior to 1940.
+* dis: weighted mean of distances to five Boston employment centres.
+* rad: index of accessibility to radial highways.
+* tax: full-value property-tax rate per \$10,000.
+* ptratio: pupil-teacher ratio by town.
+* black: 1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town.
+* lstat: lower status of the population (percent).
+* medv: median value of owner-occupied homes in \$1000s.
+
+## Lab 3.6.2: Simple Linear Regression
 ### Fit an SLR model to the Data
+Fit a simple linear regression model where medv is the response variable and lstat is the predictor varaible
 
 ```{r fit-slr, echo=FALSE}
-# lstat = lower status of the population (percent).
-# medv = median value of owner-occupied homes in \$1000s.
-# fit simple linear regression model where medv is the response variable and lstat is the predictor varaible
 lm.fit=lm(medv~lstat, data=Boston)
 # get coefficients
 coef(lm.fit)
@@ -65,7 +85,47 @@ On the basis of the residual plots, there is some evidence of non-linearity.
 ```{r plot-leverage-stats, echo=FALSE}
 plot(hatvalues (lm.fit))
 ```
-The largest element of the vector, i.e. the largest leverage statisti,c is:
+The largest element of the vector, i.e. the largest leverage statistic is:
 ```{r largest-vect-element, echo=FALSE}
 which.max(hatvalues (lm.fit))
+```
+
+## Lab 3.6.3: Multiple Linear Regression
+
+### Fit Multiple Linear regression for lstat and age
+
+```{r fit-multi-lin-reg, echo=FALSE}
+# fit lstat and age as predictors
+lm.fit=lm(medv~lstat+age, data=Boston)
+# get a summary of the results
+summary(lm.fit)
+```
+
+
+### Fit Multiple Linear Regression for all variables
+
+```{r fit-multi-lin-reg-all, echo=FALSE}
+# fit lstat and age as predictors
+lm.fit=lm(medv~., data=Boston)
+# get a summary of the results
+summary(lm.fit)
+```
+### Fit Multiple Linear Regression for all variables minus age
+```{r fit-multi-lin-reg-all-minus-age, echo=FALSE}
+# fit lstat and age as predictors
+lm.fit=lm(medv~.-age, data=Boston)
+# get a summary of the results
+summary(lm.fit)
+```
+Compute variance inflation factors for the above model
+```{r compute-variance-inflation-factors, echo=FALSE}
+vif(lm.fit)
+```
+
+## Lab 3.6.4: Interaction Terms
+
+### Fit a linear regression model for lstat, age and an interaction term (lstat*age)
+
+```{r linear-reg-interaction-term, echo=FALSE}
+summary(lm(medv~lstat*age,data=Boston))
 ```
