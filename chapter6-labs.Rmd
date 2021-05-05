@@ -7,8 +7,10 @@ This is an R Notebook containing the chapter 6 labs from 'An Introduction to Sta
 ```{r setup, include=FALSE}
 install.packages("ISLR")
 install.packages("leaps")
+install.packages("glmnet")
 library("ISLR")
 library("leaps")
+library("glmnet")
 ```
 
 ## Hitters Data Details
@@ -108,3 +110,175 @@ plot(regfit.full,scale="bic")
 ```
 
 ## Lab 6.5.3: Choosing Among Models Using the Validation Set Approach and Cross-Validation
+
+```{r setup-training-test-data, include=FALSE}
+set.seed(1)
+train=sample(c(TRUE, FALSE), nrow(Hitters), rep=TRUE)
+test=(!train)
+```
+
+``` {r define-predict-method, include=FALSE}
+predict.regsubsets=function(object, newdata, id){
+  form=as.formula(object$call [[2]]) 
+  mat=model.matrix(form,newdata)
+  coefi=coef(object ,id=id)
+  xvars=names(coefi)
+  mat[,xvars]%*%coefi
+}
+```
+
+The MSE Values for subsets 1-19 are:
+```{r find-best-model, echo=FALSE}
+# best subset selection
+ regfit.best=regsubsets(Salary~.,data=Hitters[train,], nvmax =19)
+# make a model matrix from the test data
+test.mat=model.matrix(Salary~.,data=Hitters[test,])
+# create list of 19 NAs
+val.errors=rep(NA,19)
+# extract best coefficient for value of i in regfit.best
+for(i in 1:19){
+  coefi=coef(regfit.best,id=i)
+  pred=test.mat[,names(coefi)]%*%coefi
+  val.errors[i]=mean((Hitters$Salary[test]-pred)^2)
+}
+val.errors
+```
+The best model is the one with 10 variables. Here are its coefficients:
+```{r model-coefficients-10-test, echo=FALSE}
+coef(regfit.best,10)
+```
+The best 10 variable model on the full data set has different values to the above model:
+```{r model-coefficients-10-full, echo=FALSE}
+regfit.best=regsubsets(Salary~.,data=Hitters ,nvmax=19)
+coef(regfit.best,10)
+```
+We now perform cross-validation...
+``` {r cross-validation, echo=FALSE}
+k=10
+set.seed (1)
+folds=sample(1:k,nrow(Hitters),replace=TRUE)
+cv.errors=matrix(NA,k,19, dimnames=list(NULL, paste(1:19)))
+# perform cross-validation
+for(j in 1:k){
+  best.fit=regsubsets(Salary~., data=Hitters[folds!=j,], nvmax=19)
+  for(i in 1:19){
+    pred=predict(best.fit, Hitters[folds==j,], id=i)
+    cv.errors[j, i]=mean((Hitters$Salary[folds==j]-pred)^2)
+  }
+}
+
+```
+This has given us a 10×19 matrix, of which the (i, j)th element corresponds to the test MSE for the ith cross-validation fold for the best j-variable model.
+
+Obtain the average over the columns of the above matrix in order to obtain a vector for which the jth element is the cross- validation error for the j-variable model.
+``` {r get-vector, echo=FALSE}
+mean.cv.errors=apply(cv.errors, 2, mean)
+mean.cv.errors
+par(mfrow=c(1,1))
+plot(mean.cv.errors ,type="b")
+```
+Now perform the best subset selection on the full data set in order to obtain the 11-variable model
+``` {r perform-subset-11-var, echo=FALSE}
+reg.best=regsubsets (Salary~.,data=Hitters , nvmax=19)
+coef(reg.best ,11)
+```
+## Lab 6.6.1: Ridge Regression
+``` {r setup-glmnet, include=FALSE}
+# we must pass in an x matrix as well as a y vector
+x=model.matrix(Salary~.,Hitters)[,-1]
+y=Hitters$Salary
+# set lambda values
+grid=10^seq(10, -2, length=100)
+# alpha = 0 means you are using ridge
+ridge.mod=glmnet(x, y, alpha=0, lambda=grid)
+```
+
+The current setup has 20 rows (one for each predictor plus an intercept) and 100 columns for the lamda values:
+``` {r ridge-coef-dim, echo=FALSE}
+dim(coef(ridge.mod))
+```
+
+Experiment with lamda values to see as lamda increases the l2 norm of the coefficients decrease (lambda, coefficients then l2 norm)
+``` {r lambda-vs-l2norm, echo=FALSE}
+ridge.mod$lambda [60]
+coef(ridge.mod)[,60]
+sqrt(sum(coef(ridge.mod)[-1,60]^2))
+ridge.mod$lambda [50]
+coef(ridge.mod)[,50]
+sqrt(sum(coef(ridge.mod)[-1,50]^2))
+```
+
+We can use the predict() function for numerous purposes such as predicting ridge coefficients for a new value of lambda, for example 50:
+``` {r predict-lambda-50, echo=FALSE}
+predict(ridge.mod,s=50,type="coefficients")[1:20,]
+```
+
+``` {r split-data, echo=FALSE}
+set.seed (1)
+train=sample(1:nrow(x), nrow(x)/2)
+test=(-train)
+y.test=y[test]
+```
+Now we fit the ridge regression model on the training set, and evaluate its MSE on the test set, using lambda = 4:
+``` {r fit-ridge-to-training-data, echo=FALSE}
+ridge.mod=glmnet(x[train,],y[train],alpha=0,lambda=grid, thresh=1e-12)
+ridge.pred=predict(ridge.mod,s=4,newx=x[test,])
+mean((ridge.pred-y.test)^2)
+
+```
+Note that if we had instead simply fit a model with just an intercept, we would have predicted each test observation using the mean of the training observations. In that case, we could compute the test set MSE like this:
+``` {r mse-with-mean}
+mean((mean(y[train])-y.test)^2)
+```
+We could also get the same result by fitting a ridge regression model with a very large value of lambda for instance s=1e10:
+``` {r fit-ridge-to-training-data-large}
+ridge.mod=glmnet(x[train,],y[train],alpha=0,lambda=grid, thresh=1e-12)
+ridge.pred=predict(ridge.mod,s=1e10,newx=x[test,])
+mean((ridge.pred-y.test)^2)
+```
+The lambda that results in the smallest cross validation error is:
+``` {r cross-val-ridge, echo=FALSE}
+set.seed (1)
+cv.out=cv.glmnet(x[train ,],y[train],alpha=0)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+bestlam
+```
+The MSE associated with this value of Lambda is:
+```{r mse-best-lambda, echo=FALSE}
+ridge.pred=predict(ridge.mod,s=bestlam ,newx=x[test,]) 
+mean((ridge.pred-y.test)^2)
+```
+Refit the ridge regression model on the full data set, using the value of lambda chosen by cross-validation:
+```{r fit-full-data, echo=FALSE}
+out=glmnet(x,y,alpha=0)
+predict(out,type="coefficients",s=bestlam)[1:20,]
+```
+As expected none of the coefficients are 0 which means ridge regression does not perform variable selection.
+
+## Lab 6.2.2: The Lasso
+### Coefficient plot for Lasso
+``` {r fit-and-plot-lasso, echo=FALSE}
+lasso.mod=glmnet(x[train ,],y[train],alpha=1,lambda=grid)
+plot(lasso.mod)
+```
+
+We can see from the coefficient plot that depending on the choice of tuning parameter, some of the coefficients will be exactly equal to zero. We now perform cross-validation and compute the associated test error, which is:
+``` {r compute-test-error, echo=FALSE}
+set.seed (1)
+cv.out=cv.glmnet(x[train ,],y[train],alpha=1)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+lasso.pred=predict(lasso.mod,s=bestlam ,newx=x[test,])
+mean((lasso.pred-y.test)^2)
+```
+This is substantially lower than the test set MSE of the null model and of least squares, and very similar to the test MSE of ridge regression with λ chosen by cross-validation. However, the lasso has a substantial advantage over ridge regression in that the resulting coefficient estimates are sparse. Here we see that 8 of the 19 coefficient estimates are exactly zero:
+``` {r lasso-coefficients, echo=FALSE}
+out=glmnet(x,y,alpha=1,lambda=grid)
+lasso.coef=predict(out,type="coefficients",s=bestlam)[1:20,]
+lasso.coef
+```
+So the lasso model with lasso chosen by cross-validation contains only 11 variables.
+``` {r non-0-coefficients, echo=FALSE}
+lasso.coef[lasso.coef!=0]
+```
