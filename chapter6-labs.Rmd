@@ -1,0 +1,91 @@
+---
+title: "ISLR Chapter 6 Labs"
+output: html_notebook
+---
+This is an R Notebook containing the chapter 6 labs from 'An Introduction to Statistical Learning with Applications in R'
+
+```{r setup, include=FALSE}
+install.packages("ISLR")
+install.packages("leaps")
+library("ISLR")
+library("leaps")
+```
+
+## Hitters Data Details
+Major League Baseball Data from the 1986 and 1987 seasons. A data frame with 322 observations of major league players.
+
+Variables:
+
+* AtBat: Number of times at bat in 1986
+* Hits: Number of hits in 1986
+* HmRun: Number of home runs in 1986
+* Runs: Number of runs in 1986
+* RBI: Number of runs batted in in 1986
+* Walks: Number of walks in 1986
+* Years: Number of years in the major leagues
+* CAtBat: Number of times at bat during his career
+* CHits: Number of hits during his career
+* CHmRun: Number of home runs during his career
+* CRuns: Number of runs during his career
+* CRBI: Number of runs batted in during his career
+* CWalks: Number of walks during his career
+* League: A factor with levels A and N indicating player's league at the end of 1986
+* Division: A factor with levels E and W indicating player's division at the end of 1986
+* PutOuts: Number of put outs in 1986
+* Assists: Number of assists in 1986
+* Errors: Number of errors in 1986
+* Salary: 1987 annual salary on opening day in thousands of dollars
+* NewLeague: A factor with levels A and N indicating player's league at the beginning of 1987
+
+```{r modify-data, include=FALSE}
+# see columns and rows
+dim(Hitters)
+# check for empty salary values and get the number of them
+sum(is.na(Hitters$Salary))
+# remove all empty salary values
+Hitters=na.omit(Hitters)
+# check new dimensions and that there are no empty salary values
+dim(Hitters)
+Hitters=na.omit(Hitters)
+```
+
+## Best Subset Selection
+Perform subset selection with 19 variables
+```{r best-subset, echo=FALSE}
+# nvmax = max variable number
+regfit.full=regsubsets(Salary~., data=Hitters, nvmax=19)
+reg.summary=summary(regfit.full)
+```
+R squared values:
+```{r rsq-values, echo=FALSE}
+# show r squared for the 19 models
+reg.summary$rsq
+```
+As expected, the R2 statistic increases monotonically as more variables are included.
+
+Largest Adjusted Rsqr:
+``` {r find-largest-adjr2, echo=FALSE}
+which.max(reg.summary$adjr2)
+```
+Smallest Cp:
+````{r find-largest-cp, echo=FALSE}
+which.min(reg.summary$cp)
+```
+Smallest BIC:
+````{r find-largest-bic, echo=FALSE}
+which.min(reg.summary$bic)
+```
+
+### Plot of RSS, adjusted Rsqr, Cp and BIC
+``` {r rss-rsqr-cp-bic-plot, echo=FALSE}
+# create 2 by 2 grid
+par(mfrow=c(2,2))
+# type="l" connects the plotted points with lines
+plot(reg.summary$rss, xlab="Number of Variables ", ylab="RSS", type="l")
+plot(reg.summary$adjr2, xlab="Number of Variables ", ylab="Adjusted RSq", type="l")
+points(11,reg.summary$adjr2[11], col="red",cex=2,pch=20)
+plot(reg.summary$cp, xlab="Number of Variables ",ylab="Cp", type="l")
+points(10,reg.summary$cp [10],col="red",cex=2,pch=20)
+plot(reg.summary$bic, xlab="Number of Variables", ylab="BIC", type="l")
+points(6,reg.summary$bic [6],col="red",cex=2,pch=20)
+```
