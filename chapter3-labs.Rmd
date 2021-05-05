@@ -1,0 +1,71 @@
+---
+title: "ISLR Chpater 3 Labs"
+output: html_notebook
+---
+This is an R Notebook containing the chapter 3 labs from 'An Introduction to Statistical Learning with Applications in R'
+
+```{r setup, include=FALSE}
+install.packages("MASS")
+install.packages("ISLR")
+library("MASS")
+library("ISLR")
+```
+
+## Lab 3.6.2
+### Fit an SLR model to the Data
+
+```{r fit-slr, echo=FALSE}
+# lstat = lower status of the population (percent).
+# medv = median value of owner-occupied homes in \$1000s.
+# fit simple linear regression model where medv is the response variable and lstat is the predictor varaible
+lm.fit=lm(medv~lstat, data=Boston)
+# get coefficients
+coef(lm.fit)
+# get confidence intervals
+confint(lm.fit)
+# get data from model
+summary(lm.fit)
+# predict used to produce confidence intervals
+predict(lm.fit,data.frame(lstat=c(5,10,15)), interval ="confidence")
+# predict used to produce confidence intervals
+predict(lm.fit,data.frame(lstat=c(5,10,15)), interval ="prediction")
+
+```
+
+#### Interpretation of the above:
+
+The 95 % confidence interval associated with a lstat value of 10 is (24.47, 25.63), and the 95 % prediction interval is (12.828, 37.28). As expected, the confidence and prediction intervals are centered around the same point (a predicted value of 25.05 for medv when lstat equals 10), but the latter are substantially wider.
+
+### Plot of medv and lstat along with the least sqaures regression line
+
+```{r plot-least-sqr-reg, echo=FALSE}
+plot(lstat, medv)
+abline(lm.fit)
+```
+
+#### Interpretation of the above:
+
+There is some evidence for non-linearity in the relationship between lstat and medv.
+
+### Plot of residuals
+
+```{r plot-residuals, echo=FALSE}
+# plot residuals
+plot(predict(lm.fit), residuals(lm.fit))
+```
+### Plot studentized residuals
+```{r plot-studentized-res, echo=FALSE}
+# plot studentized residuals
+plot(predict(lm.fit), rstudent(lm.fit))
+```
+#### Interpretation of the above:
+On the basis of the residual plots, there is some evidence of non-linearity.
+
+### Plot Leverage statistics
+```{r plot-leverage-stats, echo=FALSE}
+plot(hatvalues (lm.fit))
+```
+The largest element of the vector, i.e. the largest leverage statisti,c is:
+```{r largest-vect-element, echo=FALSE}
+which.max(hatvalues (lm.fit))
+```
